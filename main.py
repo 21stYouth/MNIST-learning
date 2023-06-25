@@ -2,6 +2,9 @@ import torch
 import torchvision
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
 
 print(torch.cuda.is_available())
 
@@ -15,33 +18,29 @@ random_seed = 1
 torch.manual_seed(random_seed)
 
 
+# 1.prepare the data
+
 train_loader = torch.utils.data.DataLoader(
     torchvision.datasets.MNIST('./data/', train=True, download=True,
                                transform=torchvision.transforms.Compose([
                                    torchvision.transforms.ToTensor(),
-                                   torchvision.transforms.Normalize(
-                                       (0.1307,), (0.3081,))
-                               ])),
+                                   torchvision.transforms.Normalize((0.1307,), (0.3081,))])),
     batch_size=batch_size_train, shuffle=True)
 test_loader = torch.utils.data.DataLoader(
     torchvision.datasets.MNIST('./data/', train=False, download=True,
                                transform=torchvision.transforms.Compose([
                                    torchvision.transforms.ToTensor(),
-                                   torchvision.transforms.Normalize(
-                                       (0.1307,), (0.3081,))
-                               ])),
+                                   torchvision.transforms.Normalize((0.1307,), (0.3081,))])),
     batch_size=batch_size_test, shuffle=True)
 
 
 examples = enumerate(test_loader)
 batch_idx, (example_data, example_targets) = next(examples)
-print(example_targets)
-print(example_data.shape)
 
 
 fig = plt.figure()
 for i in range(6):
-  plt.subplot(2,3,i+1)
+  plt.subplot(2, 3, i+1)
   plt.tight_layout()
   plt.imshow(example_data[i][0], cmap='gray', interpolation='none')
   plt.title("Ground Truth: {}".format(example_targets[i]))
@@ -49,11 +48,7 @@ for i in range(6):
   plt.yticks([])
 plt.show()
 
-
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-
+# 2.make the network and optimizer
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -84,7 +79,10 @@ train_counter = []
 test_losses = []
 test_counter = [i*len(train_loader.dataset) for i in range(n_epochs + 1)]
 
+print(len(train_loader.dataset))
 
+
+# 3. train
 def train(epoch):
     network.train()
     for batch_idx, (data, target) in enumerate(train_loader):
@@ -104,7 +102,8 @@ def train(epoch):
             torch.save(optimizer.state_dict(), './optimizer.pth')
 
 
-def test():
+# 4. evaluation
+def evaluation():
     network.eval()
     test_loss = 0
     correct = 0
@@ -120,12 +119,13 @@ def test():
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
 
-train(1)
-test()  # 不加这个，后面画图就会报错：x and y must be the same size
+
+evaluation()
 for epoch in range(1, n_epochs + 1):
     train(epoch)
-    test()
+    evaluation()
 
+# 5.show loss
 fig = plt.figure()
 plt.plot(train_counter, train_losses, color='blue')
 plt.scatter(test_counter, test_losses, color='red')
@@ -135,6 +135,7 @@ plt.ylabel('negative log likelihood loss')
 plt.show()
 
 
+# 6.test
 examples = enumerate(test_loader)
 batch_idx, (example_data, example_targets) = next(examples)
 with torch.no_grad():
